@@ -17,6 +17,7 @@ const HomeScreen = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortType, setSortType] = useState('name'); // 'name', 'price', 'status'
     const [isAddModalVisible, setAddModalVisible] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         const loadProducts = async () => {
@@ -61,8 +62,32 @@ const HomeScreen = ({ navigation }) => {
         });
     };
 
+    const validateFields = () => {
+        if (!productName.trim()) {
+            setErrorMessage('Por favor, preencha o nome do produto');
+            return false;
+        }
+        
+        const price = parseFloat(productPrice);
+        if (!productPrice.trim() || isNaN(price) || price <= 0) {
+            setErrorMessage('Por favor, insira um preço válido');
+            return false;
+        }
+        
+        const quantity = parseInt(productQuantity);
+        if (!productQuantity.trim() || isNaN(quantity) || quantity <= 0) {
+            setErrorMessage('Por favor, insira uma quantidade válida');
+            return false;
+        }
+        
+        setErrorMessage('');
+        return true;
+    };
+
     const addProduct = () => {
-        if (!validateFields()) return;
+        if (!validateFields()) {
+            return;
+        }
         
         const newProduct = {
             id: Math.random().toString(),
@@ -75,6 +100,7 @@ const HomeScreen = ({ navigation }) => {
         setProductName('');
         setProductPrice('');
         setProductQuantity('');
+        setAddModalVisible(false);
         showToast(`${newProduct.name} adicionado com sucesso!`);
     };
 
@@ -175,27 +201,6 @@ const HomeScreen = ({ navigation }) => {
         ));
     };
 
-    const validateFields = () => {
-        if (!productName.trim()) {
-            alert('Por favor, insira o nome do produto');
-            return false;
-        }
-        
-        const price = parseFloat(productPrice);
-        if (isNaN(price) || price <= 0) {
-            alert('Por favor, insira um preço válido');
-            return false;
-        }
-        
-        const quantity = parseInt(productQuantity);
-        if (isNaN(quantity) || quantity <= 0) {
-            alert('Por favor, insira uma quantidade válida');
-            return false;
-        }
-        
-        return true;
-    };
-
     // Função para filtrar e ordenar produtos
     const getFilteredAndSortedProducts = () => {
         let filtered = products;
@@ -272,6 +277,11 @@ const HomeScreen = ({ navigation }) => {
         setProductPrice('');
         setProductQuantity('');
         setAddModalVisible(true);
+    };
+
+    const closeAddModal = () => {
+        setErrorMessage('');
+        setAddModalVisible(false);
     };
 
     return (
@@ -403,7 +413,7 @@ const HomeScreen = ({ navigation }) => {
                 animationType="slide"
                 transparent={true}
                 visible={isAddModalVisible}
-                onRequestClose={() => setAddModalVisible(false)}
+                onRequestClose={closeAddModal}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
@@ -411,46 +421,68 @@ const HomeScreen = ({ navigation }) => {
                             <Text style={styles.modalTitle}>Novo Produto</Text>
                             <TouchableOpacity 
                                 style={styles.closeButton}
-                                onPress={() => setAddModalVisible(false)}
+                                onPress={closeAddModal}
                             >
                                 <MaterialIcons name="close" size={24} color="#666" />
                             </TouchableOpacity>
                         </View>
 
-                    <TextInput 
-                            style={styles.modalInput} 
-                        placeholder="Nome do Produto" 
-                        value={productName} 
-                        onChangeText={setProductName} 
-                    />
-                    <TextInput 
-                            style={styles.modalInput} 
-                        placeholder="Preço" 
-                        value={productPrice} 
-                        onChangeText={setProductPrice} 
-                        keyboardType="numeric" 
-                    />
-                    <TextInput 
-                            style={styles.modalInput} 
-                        placeholder="Quantidade" 
-                        value={productQuantity} 
-                        onChangeText={setProductQuantity} 
-                        keyboardType="numeric" 
-                    />
+                        {errorMessage ? (
+                            <View style={styles.errorContainer}>
+                                <MaterialIcons name="error-outline" size={20} color="#FF5252" />
+                                <Text style={styles.errorText}>{errorMessage}</Text>
+                            </View>
+                        ) : null}
+
+                        <TextInput 
+                            style={[
+                                styles.modalInput,
+                                !productName.trim() && errorMessage && styles.inputError
+                            ]} 
+                            placeholder="Nome do Produto" 
+                            value={productName} 
+                            onChangeText={(text) => {
+                                setProductName(text);
+                                setErrorMessage('');
+                            }}
+                        />
+                        <TextInput 
+                            style={[
+                                styles.modalInput,
+                                (!productPrice.trim() || isNaN(parseFloat(productPrice)) || parseFloat(productPrice) <= 0) && errorMessage && styles.inputError
+                            ]} 
+                            placeholder="Preço" 
+                            value={productPrice} 
+                            onChangeText={(text) => {
+                                setProductPrice(text);
+                                setErrorMessage('');
+                            }}
+                            keyboardType="numeric"
+                        />
+                        <TextInput 
+                            style={[
+                                styles.modalInput,
+                                (!productQuantity.trim() || isNaN(parseInt(productQuantity)) || parseInt(productQuantity) <= 0) && errorMessage && styles.inputError
+                            ]} 
+                            placeholder="Quantidade" 
+                            value={productQuantity} 
+                            onChangeText={(text) => {
+                                setProductQuantity(text);
+                                setErrorMessage('');
+                            }}
+                            keyboardType="numeric"
+                        />
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity 
                                 style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setAddModalVisible(false)}
+                                onPress={closeAddModal}
                             >
                                 <Text style={styles.cancelButtonText}>CANCELAR</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={[styles.modalButton, styles.saveButton]}
-                                onPress={() => {
-                                    addProduct();
-                                    setAddModalVisible(false);
-                                }}
+                                onPress={addProduct}
                             >
                                 <Text style={styles.saveButtonText}>ADICIONAR</Text>
                             </TouchableOpacity>
@@ -693,6 +725,24 @@ const styles = StyleSheet.create({
     },
     sortButtonTextActive: {
         color: 'white',
+    },
+    inputError: {
+        borderColor: '#FF5252',
+        borderWidth: 1,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFEBEE',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 12,
+    },
+    errorText: {
+        color: '#FF5252',
+        marginLeft: 8,
+        flex: 1,
+        fontSize: 14,
     },
 });
 
