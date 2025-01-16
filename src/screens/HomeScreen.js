@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, TextInput, StyleSheet, Modal } from 'react-native';
+import { View, Text, FlatList, Button, TextInput, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import ProductItem from '../components/ProductItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -43,7 +43,7 @@ const HomeScreen = () => {
     };
 
     const totalCost = products.reduce((total, product) => {
-        return total + (product.purchased ? 0 : product.price * product.quantity);
+        return total + (product.purchased ? product.price * product.quantity : 0);
     }, 0);
 
     const togglePurchased = (id) => {
@@ -74,6 +74,14 @@ const HomeScreen = () => {
         setProducts(products.filter(product => product.id !== id));
     };
 
+    const updateQuantity = (id, increment) => {
+        setProducts(products.map(product => 
+            product.id === id 
+                ? { ...product, quantity: Math.max(1, product.quantity + increment) }
+                : product
+        ));
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.totalCost}>Total da Compra: R$ {totalCost.toFixed(2)}</Text>
@@ -97,7 +105,9 @@ const HomeScreen = () => {
                 onChangeText={setProductQuantity} 
                 keyboardType="numeric" 
             />
-            <Button title="Adicionar Produto" onPress={addProduct} />
+            <TouchableOpacity style={styles.addButton} onPress={addProduct}>
+                <Text style={styles.addButtonText}>ADICIONAR PRODUTO</Text>
+            </TouchableOpacity>
             <FlatList
                 data={products}
                 renderItem={({ item }) => (
@@ -105,7 +115,8 @@ const HomeScreen = () => {
                         product={item} 
                         togglePurchased={togglePurchased} 
                         openEditModal={openEditModal} 
-                        deleteProduct={deleteProduct} 
+                        deleteProduct={deleteProduct}
+                        updateQuantity={updateQuantity}
                     />
                 )}
                 keyExtractor={item => item.id}
@@ -148,26 +159,41 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
+        padding: 16,
         backgroundColor: '#f8f8f8',
     },
     totalCost: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 20,
+        color: '#333',
     },
     input: {
+        backgroundColor: 'white',
         borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 10,
-        marginBottom: 10,
-        borderRadius: 5,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 12,
+        fontSize: 16,
+    },
+    addButton: {
+        backgroundColor: '#4CAF50',
+        borderRadius: 8,
+        paddingVertical: 12,
+        marginBottom: 20,
+    },
+    addButtonText: {
+        color: 'white',
+        textAlign: 'center',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     modalContainer: {
         flex: 1,
-        justifyContent: 'center',
         padding: 20,
-        backgroundColor: '#fff',
+        backgroundColor: '#f8f8f8',
+        justifyContent: 'center',
     },
 });
 
