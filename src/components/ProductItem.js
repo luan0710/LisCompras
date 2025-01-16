@@ -150,17 +150,17 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     circleButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
         justifyContent: 'center',
         alignItems: 'center',
     },
     buttonText: {
         color: 'white',
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
-        lineHeight: 16,
+        lineHeight: 18,
     },
     quantityText: {
         minWidth: 24,
