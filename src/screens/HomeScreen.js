@@ -157,7 +157,7 @@ const HomeScreen = ({ navigation }) => {
                     {
                         text: 'Excluir',
                         onPress: () => {
-                            setProducts(products.filter(product => product.id !== id));
+        setProducts(products.filter(product => product.id !== id));
                         },
                         style: 'destructive',
                     },
@@ -293,7 +293,7 @@ const HomeScreen = ({ navigation }) => {
 
             <View style={styles.searchContainer}>
                 <MaterialIcons name="search" size={20} color="#666" />
-                <TextInput 
+            <TextInput 
                     style={styles.searchInput}
                     placeholder="Pesquisar produtos..."
                     value={searchQuery}
@@ -335,7 +335,7 @@ const HomeScreen = ({ navigation }) => {
                         product={item} 
                         togglePurchased={togglePurchased} 
                         openEditModal={openEditModal} 
-                        deleteProduct={deleteProduct}
+                        deleteProduct={deleteProduct} 
                         updateQuantity={updateQuantity}
                     />
                 )}
@@ -417,26 +417,26 @@ const HomeScreen = ({ navigation }) => {
                             </TouchableOpacity>
                         </View>
 
-                        <TextInput 
+                    <TextInput 
                             style={styles.modalInput} 
-                            placeholder="Nome do Produto" 
-                            value={productName} 
-                            onChangeText={setProductName}
-                        />
-                        <TextInput 
+                        placeholder="Nome do Produto" 
+                        value={productName} 
+                        onChangeText={setProductName} 
+                    />
+                    <TextInput 
                             style={styles.modalInput} 
-                            placeholder="Preço" 
-                            value={productPrice} 
-                            onChangeText={setProductPrice} 
-                            keyboardType="numeric"
-                        />
-                        <TextInput 
+                        placeholder="Preço" 
+                        value={productPrice} 
+                        onChangeText={setProductPrice} 
+                        keyboardType="numeric" 
+                    />
+                    <TextInput 
                             style={styles.modalInput} 
-                            placeholder="Quantidade" 
-                            value={productQuantity} 
-                            onChangeText={setProductQuantity} 
-                            keyboardType="numeric"
-                        />
+                        placeholder="Quantidade" 
+                        value={productQuantity} 
+                        onChangeText={setProductQuantity} 
+                        keyboardType="numeric" 
+                    />
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity 
