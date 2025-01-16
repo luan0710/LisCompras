@@ -8,27 +8,39 @@ const ProductItem = ({ product, togglePurchased, openEditModal, deleteProduct, u
             styles.itemContainer,
             product.purchased && styles.purchasedContainer
         ]}>
-            <TouchableOpacity 
-                style={styles.productTextContainer} 
-                onPress={() => togglePurchased(product.id)}
-            >
+            <View style={styles.productTextContainer}>
                 <View style={styles.nameContainer}>
-                    {product.purchased && (
-                        <MaterialIcons 
-                            name="check-circle" 
-                            size={20} 
-                            color="#4CAF50" 
-                            style={styles.checkIcon}
-                        />
-                    )}
-                    <Text 
+                    <View style={styles.nameAndCheckContainer}>
+                        {product.purchased && (
+                            <MaterialIcons 
+                                name="check-circle" 
+                                size={20} 
+                                color="#4CAF50" 
+                                style={styles.checkIcon}
+                            />
+                        )}
+                        <Text 
+                            style={[
+                                styles.productName,
+                                product.purchased && styles.purchasedText
+                            ]}
+                        >
+                            {product.name}
+                        </Text>
+                    </View>
+                    <TouchableOpacity 
                         style={[
-                            styles.productName,
-                            product.purchased && styles.purchasedText
+                            styles.cartButton, 
+                            product.purchased ? styles.greenButton : styles.grayButton
                         ]}
+                        onPress={() => togglePurchased(product.id)}
                     >
-                        {product.name}
-                    </Text>
+                        <MaterialIcons 
+                            name={product.purchased ? "shopping-cart" : "add-shopping-cart"} 
+                            size={24} 
+                            color="white" 
+                        />
+                    </TouchableOpacity>
                 </View>
                 <Text style={[
                     styles.productPrice,
@@ -36,7 +48,7 @@ const ProductItem = ({ product, togglePurchased, openEditModal, deleteProduct, u
                 ]}>
                     R$ {product.price.toFixed(2)}
                 </Text>
-            </TouchableOpacity>
+            </View>
 
             <View style={styles.buttonsContainer}>
                 <View style={styles.quantityContainer}>
@@ -95,7 +107,14 @@ const styles = StyleSheet.create({
     nameContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         marginBottom: 4,
+    },
+    nameAndCheckContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: 12,
     },
     checkIcon: {
         marginRight: 4,
@@ -104,6 +123,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
         color: '#333',
+        flex: 1,
     },
     productPrice: {
         fontSize: 14,
@@ -148,14 +168,35 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
     },
-    orangeButton: {
-        backgroundColor: '#f4511e',
+    grayButton: {
+        backgroundColor: '#757575',
+    },
+    greenButton: {
+        backgroundColor: '#4CAF50',
     },
     blueButton: {
         backgroundColor: '#2196F3',
     },
     redButton: {
         backgroundColor: '#FF5252',
+    },
+    orangeButton: {
+        backgroundColor: '#f4511e',
+    },
+    cartButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.22,
+        shadowRadius: 2.22,
     },
 });
 
