@@ -4,7 +4,7 @@ import ProductItem from '../components/ProductItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
     const [products, setProducts] = useState([]);
     const [productName, setProductName] = useState('');
     const [productPrice, setProductPrice] = useState('');
@@ -14,6 +14,9 @@ const HomeScreen = () => {
     const [toastVisible, setToastVisible] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const fadeAnim = useState(new Animated.Value(0))[0];
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortType, setSortType] = useState('name'); // 'name', 'price', 'status'
+    const [isAddModalVisible, setAddModalVisible] = useState(false);
 
     useEffect(() => {
         const loadProducts = async () => {
@@ -31,6 +34,12 @@ const HomeScreen = () => {
         };
         saveProducts();
     }, [products]);
+
+    useEffect(() => {
+        navigation.setParams({
+            openAddModal: () => setAddModalVisible(true)
+        });
+    }, [navigation]);
 
     const showToast = (message) => {
         setToastMessage(message);
@@ -69,9 +78,36 @@ const HomeScreen = () => {
         showToast(`${newProduct.name} adicionado com sucesso!`);
     };
 
-    const totalCost = products.reduce((total, product) => {
+    const totalComprados = products.reduce((total, product) => {
         return total + (product.purchased ? product.price * product.quantity : 0);
     }, 0);
+
+    const totalPendentes = products.reduce((total, product) => {
+        return total + (!product.purchased ? product.price * product.quantity : 0);
+    }, 0);
+
+    const clearPurchasedProducts = () => {
+        Alert.alert(
+            'Limpar comprados',
+            'Deseja remover todos os produtos já comprados da lista?',
+            [
+                {
+                    text: 'Cancelar',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Limpar',
+                    onPress: () => {
+                        const newProducts = products.filter(product => !product.purchased);
+                        setProducts(newProducts);
+                        showToast('Produtos comprados removidos com sucesso!');
+                    },
+                    style: 'destructive',
+                },
+            ],
+            { cancelable: true }
+        );
+    };
 
     const togglePurchased = (id) => {
         setProducts(products.map(product => 
@@ -160,34 +196,140 @@ const HomeScreen = () => {
         return true;
     };
 
+    // Função para filtrar e ordenar produtos
+    const getFilteredAndSortedProducts = () => {
+        let filtered = products;
+        
+        // Filtrar por pesquisa
+        if (searchQuery) {
+            filtered = products.filter(product => 
+                product.name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Ordenar
+        return filtered.sort((a, b) => {
+            switch (sortType) {
+                case 'name':
+                    return a.name.localeCompare(b.name);
+                case 'price':
+                    return (b.price * b.quantity) - (a.price * a.quantity);
+                case 'status':
+                    return (a.purchased === b.purchased) ? 0 : a.purchased ? 1 : -1;
+                default:
+                    return 0;
+            }
+        });
+    };
+
+    // Componente para o cabeçalho da lista com opções de ordenação
+    const ListHeader = () => (
+        <View style={styles.listHeader}>
+            <Text style={styles.sortLabel}>Ordenar por:</Text>
+            <View style={styles.sortButtons}>
+                <TouchableOpacity 
+                    style={[
+                        styles.sortButton,
+                        sortType === 'name' && styles.sortButtonActive
+                    ]}
+                    onPress={() => setSortType('name')}
+                >
+                    <Text style={[
+                        styles.sortButtonText,
+                        sortType === 'name' && styles.sortButtonTextActive
+                    ]}>Nome</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[
+                        styles.sortButton,
+                        sortType === 'price' && styles.sortButtonActive
+                    ]}
+                    onPress={() => setSortType('price')}
+                >
+                    <Text style={[
+                        styles.sortButtonText,
+                        sortType === 'price' && styles.sortButtonTextActive
+                    ]}>Valor</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[
+                        styles.sortButton,
+                        sortType === 'status' && styles.sortButtonActive
+                    ]}
+                    onPress={() => setSortType('status')}
+                >
+                    <Text style={[
+                        styles.sortButtonText,
+                        sortType === 'status' && styles.sortButtonTextActive
+                    ]}>Status</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+
+    const openAddModal = () => {
+        setProductName('');
+        setProductPrice('');
+        setProductQuantity('');
+        setAddModalVisible(true);
+    };
+
     return (
         <View style={styles.container}>
-            <Text style={styles.totalCost}>Total da Compra: R$ {totalCost.toFixed(2)}</Text>
-            <TextInput 
-                style={styles.input} 
-                placeholder="Nome do Produto" 
-                value={productName} 
-                onChangeText={setProductName} 
-            />
-            <TextInput 
-                style={styles.input} 
-                placeholder="Preço" 
-                value={productPrice} 
-                onChangeText={setProductPrice} 
-                keyboardType="numeric" 
-            />
-            <TextInput 
-                style={styles.input} 
-                placeholder="Quantidade" 
-                value={productQuantity} 
-                onChangeText={setProductQuantity} 
-                keyboardType="numeric" 
-            />
-            <TouchableOpacity style={styles.addButton} onPress={addProduct}>
-                <Text style={styles.addButtonText}>ADICIONAR PRODUTO</Text>
+            <View style={styles.totalsContainer}>
+                <View style={styles.totalCard}>
+                    <Text style={styles.totalLabel}>Comprados</Text>
+                    <Text style={[styles.totalValue, styles.purchasedValue]}>
+                        R$ {totalComprados.toFixed(2)}
+                    </Text>
+                </View>
+                <View style={styles.totalCard}>
+                    <Text style={styles.totalLabel}>Pendentes</Text>
+                    <Text style={[styles.totalValue, styles.pendingValue]}>
+                        R$ {totalPendentes.toFixed(2)}
+                    </Text>
+                </View>
+            </View>
+
+            <View style={styles.searchContainer}>
+                <MaterialIcons name="search" size={20} color="#666" />
+                <TextInput 
+                    style={styles.searchInput}
+                    placeholder="Pesquisar produtos..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+                {searchQuery ? (
+                    <TouchableOpacity 
+                        onPress={() => setSearchQuery('')}
+                        style={styles.clearSearch}
+                    >
+                        <MaterialIcons name="close" size={20} color="#666" />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
+
+            {products.some(p => p.purchased) && (
+                <TouchableOpacity 
+                    style={styles.clearButton}
+                    onPress={clearPurchasedProducts}
+                >
+                    <MaterialIcons name="delete-sweep" size={20} color="white" />
+                    <Text style={styles.clearButtonText}>Limpar Comprados</Text>
+                </TouchableOpacity>
+            )}
+
+            <TouchableOpacity 
+                style={styles.addButton}
+                onPress={() => setAddModalVisible(true)}
+            >
+                <MaterialIcons name="add" size={20} color="white" />
+                <Text style={styles.addButtonText}>Adicionar Produto</Text>
             </TouchableOpacity>
+
             <FlatList
-                data={products}
+                ListHeaderComponent={ListHeader}
+                data={getFilteredAndSortedProducts()}
                 renderItem={({ item }) => (
                     <ProductItem 
                         product={item} 
@@ -199,6 +341,7 @@ const HomeScreen = () => {
                 )}
                 keyExtractor={item => item.id}
             />
+
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -255,22 +398,69 @@ const HomeScreen = () => {
                     </View>
                 </View>
             </Modal>
-            
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={isAddModalVisible}
+                onRequestClose={() => setAddModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Novo Produto</Text>
+                            <TouchableOpacity 
+                                style={styles.closeButton}
+                                onPress={() => setAddModalVisible(false)}
+                            >
+                                <MaterialIcons name="close" size={24} color="#666" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TextInput 
+                            style={styles.modalInput} 
+                            placeholder="Nome do Produto" 
+                            value={productName} 
+                            onChangeText={setProductName}
+                        />
+                        <TextInput 
+                            style={styles.modalInput} 
+                            placeholder="Preço" 
+                            value={productPrice} 
+                            onChangeText={setProductPrice} 
+                            keyboardType="numeric"
+                        />
+                        <TextInput 
+                            style={styles.modalInput} 
+                            placeholder="Quantidade" 
+                            value={productQuantity} 
+                            onChangeText={setProductQuantity} 
+                            keyboardType="numeric"
+                        />
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => setAddModalVisible(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>CANCELAR</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.saveButton]}
+                                onPress={() => {
+                                    addProduct();
+                                    setAddModalVisible(false);
+                                }}
+                            >
+                                <Text style={styles.saveButtonText}>ADICIONAR</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {toastVisible && (
-                <Animated.View 
-                    style={[
-                        styles.toast,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{
-                                translateY: fadeAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [20, 0]
-                                })
-                            }]
-                        }
-                    ]}
-                >
+                <Animated.View style={[styles.toast, {opacity: fadeAnim}]}>
                     <Text style={styles.toastText}>{toastMessage}</Text>
                 </Animated.View>
             )}
@@ -301,15 +491,18 @@ const styles = StyleSheet.create({
     },
     addButton: {
         backgroundColor: '#4CAF50',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 8,
         borderRadius: 8,
-        paddingVertical: 12,
-        marginBottom: 20,
+        marginBottom: 8,
     },
     addButtonText: {
         color: 'white',
-        textAlign: 'center',
-        fontSize: 16,
         fontWeight: 'bold',
+        marginLeft: 8,
+        fontSize: 16,
     },
     modalOverlay: {
         flex: 1,
@@ -403,6 +596,103 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textAlign: 'center',
         fontWeight: '500',
+    },
+    totalsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        gap: 12,
+    },
+    totalCard: {
+        flex: 1,
+        backgroundColor: 'white',
+        padding: 12,
+        borderRadius: 8,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.22,
+        shadowRadius: 2.22,
+    },
+    totalLabel: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 4,
+    },
+    totalValue: {
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    purchasedValue: {
+        color: '#4CAF50',
+    },
+    pendingValue: {
+        color: '#f4511e',
+    },
+    clearButton: {
+        backgroundColor: '#FF5252',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 8,
+        borderRadius: 8,
+        marginBottom: 4,
+    },
+    clearButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        marginLeft: 8,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        marginBottom: 8,
+        height: 40,
+    },
+    searchInput: {
+        flex: 1,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        fontSize: 14,
+    },
+    clearSearch: {
+        padding: 2,
+    },
+    listHeader: {
+        marginBottom: 8,
+    },
+    sortLabel: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 4,
+    },
+    sortButtons: {
+        flexDirection: 'row',
+        gap: 4,
+    },
+    sortButton: {
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 16,
+        backgroundColor: '#f0f0f0',
+    },
+    sortButtonActive: {
+        backgroundColor: '#4CAF50',
+    },
+    sortButtonText: {
+        color: '#666',
+        fontWeight: '500',
+    },
+    sortButtonTextActive: {
+        color: 'white',
     },
 });
 
