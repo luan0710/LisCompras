@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, TextInput, StyleSheet, Modal, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, Button, TextInput, StyleSheet, Modal, TouchableOpacity, Alert, Animated } from 'react-native';
 import ProductItem from '../components/ProductItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -11,6 +11,9 @@ const HomeScreen = () => {
     const [productQuantity, setProductQuantity] = useState('');
     const [isModalVisible, setModalVisible] = useState(false);
     const [currentProductId, setCurrentProductId] = useState(null);
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const fadeAnim = useState(new Animated.Value(0))[0];
 
     useEffect(() => {
         const loadProducts = async () => {
@@ -29,6 +32,26 @@ const HomeScreen = () => {
         saveProducts();
     }, [products]);
 
+    const showToast = (message) => {
+        setToastMessage(message);
+        setToastVisible(true);
+        Animated.sequence([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.delay(2000),
+            Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start(() => {
+            setToastVisible(false);
+        });
+    };
+
     const addProduct = () => {
         if (!validateFields()) return;
         
@@ -43,6 +66,7 @@ const HomeScreen = () => {
         setProductName('');
         setProductPrice('');
         setProductQuantity('');
+        showToast(`${newProduct.name} adicionado com sucesso!`);
     };
 
     const totalCost = products.reduce((total, product) => {
@@ -80,6 +104,7 @@ const HomeScreen = () => {
         setProductName('');
         setProductPrice('');
         setProductQuantity('');
+        showToast('Produto atualizado com sucesso!');
     };
 
     const deleteProduct = (id) => {
@@ -230,6 +255,25 @@ const HomeScreen = () => {
                     </View>
                 </View>
             </Modal>
+            
+            {toastVisible && (
+                <Animated.View 
+                    style={[
+                        styles.toast,
+                        {
+                            opacity: fadeAnim,
+                            transform: [{
+                                translateY: fadeAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [20, 0]
+                                })
+                            }]
+                        }
+                    ]}
+                >
+                    <Text style={styles.toastText}>{toastMessage}</Text>
+                </Animated.View>
+            )}
         </View>
     );
 };
@@ -335,6 +379,30 @@ const styles = StyleSheet.create({
     saveButtonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    toast: {
+        position: 'absolute',
+        bottom: 70,
+        left: 20,
+        right: 20,
+        backgroundColor: '#333',
+        padding: 16,
+        borderRadius: 8,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        zIndex: 1000,
+    },
+    toastText: {
+        color: 'white',
+        fontSize: 14,
+        textAlign: 'center',
+        fontWeight: '500',
     },
 });
 
