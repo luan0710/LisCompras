@@ -27,13 +27,15 @@ const HomeScreen = ({ navigation }) => {
                 setIsLoading(true);
                 setHasError(false);
                 
-                // Tenta limpar o storage primeiro
-                await AsyncStorage.clear();
-                
-                // Inicializa com array vazio
-                setProducts([]);
-                await AsyncStorage.setItem('products', JSON.stringify([]));
-                
+                // Carrega os produtos salvos
+                const storedProducts = await AsyncStorage.getItem('products');
+                if (storedProducts) {
+                    setProducts(JSON.parse(storedProducts));
+                } else {
+                    // Se não houver produtos salvos, inicializa com array vazio
+                    setProducts([]);
+                    await AsyncStorage.setItem('products', JSON.stringify([]));
+                }
             } catch (error) {
                 console.error('Erro ao carregar produtos:', error);
                 setHasError(true);
