@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, TextInput, StyleSheet, Modal, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, FlatList, Button, TextInput, StyleSheet, Modal, TouchableOpacity, Alert, Animated, ActivityIndicator } from 'react-native';
 import ProductItem from '../components/ProductItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -18,12 +18,28 @@ const HomeScreen = ({ navigation }) => {
     const [sortType, setSortType] = useState('name'); // 'name', 'price', 'status'
     const [isAddModalVisible, setAddModalVisible] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
         const loadProducts = async () => {
-            const storedProducts = await AsyncStorage.getItem('products');
-            if (storedProducts) {
-                setProducts(JSON.parse(storedProducts));
+            try {
+                setIsLoading(true);
+                setHasError(false);
+                
+                // Tenta limpar o storage primeiro
+                await AsyncStorage.clear();
+                
+                // Inicializa com array vazio
+                setProducts([]);
+                await AsyncStorage.setItem('products', JSON.stringify([]));
+                
+            } catch (error) {
+                console.error('Erro ao carregar produtos:', error);
+                setHasError(true);
+                setProducts([]);
+            } finally {
+                setIsLoading(false);
             }
         };
         loadProducts();
@@ -31,10 +47,17 @@ const HomeScreen = ({ navigation }) => {
 
     useEffect(() => {
         const saveProducts = async () => {
-            await AsyncStorage.setItem('products', JSON.stringify(products));
+            if (isLoading) return;
+            
+            try {
+                await AsyncStorage.setItem('products', JSON.stringify(products));
+            } catch (error) {
+                console.error('Erro ao salvar produtos:', error);
+                setHasError(true);
+            }
         };
         saveProducts();
-    }, [products]);
+    }, [products, isLoading]);
 
     useEffect(() => {
         navigation.setParams({
@@ -286,215 +309,238 @@ const HomeScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.totalsContainer}>
-                <View style={styles.totalCard}>
-                    <Text style={styles.totalLabel}>Comprados</Text>
-                    <Text style={[styles.totalValue, styles.purchasedValue]}>
-                        R$ {totalComprados.toFixed(2)}
-                    </Text>
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#f4511e" />
                 </View>
-                <View style={styles.totalCard}>
-                    <Text style={styles.totalLabel}>Pendentes</Text>
-                    <Text style={[styles.totalValue, styles.pendingValue]}>
-                        R$ {totalPendentes.toFixed(2)}
-                    </Text>
-                </View>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <MaterialIcons name="search" size={20} color="#666" />
-            <TextInput 
-                    style={styles.searchInput}
-                    placeholder="Pesquisar produtos..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                />
-                {searchQuery ? (
+            ) : hasError ? (
+                <View style={styles.errorContainer}>
+                    <MaterialIcons name="error-outline" size={48} color="#FF5252" />
+                    <Text style={styles.errorText}>Ocorreu um erro ao carregar os dados</Text>
                     <TouchableOpacity 
-                        onPress={() => setSearchQuery('')}
-                        style={styles.clearSearch}
+                        style={styles.retryButton}
+                        onPress={() => {
+                            setIsLoading(true);
+                            setHasError(false);
+                            loadProducts();
+                        }}
                     >
-                        <MaterialIcons name="close" size={20} color="#666" />
+                        <Text style={styles.retryButtonText}>Tentar Novamente</Text>
                     </TouchableOpacity>
-                ) : null}
-            </View>
-
-            {products.some(p => p.purchased) && (
-                <TouchableOpacity 
-                    style={styles.clearButton}
-                    onPress={clearPurchasedProducts}
-                >
-                    <MaterialIcons name="delete-sweep" size={20} color="white" />
-                    <Text style={styles.clearButtonText}>Limpar Comprados</Text>
-                </TouchableOpacity>
-            )}
-
-            <TouchableOpacity 
-                style={styles.addButton}
-                onPress={() => setAddModalVisible(true)}
-            >
-                <MaterialIcons name="add" size={20} color="white" />
-                <Text style={styles.addButtonText}>Adicionar Produto</Text>
-            </TouchableOpacity>
-
-            <FlatList
-                ListHeaderComponent={ListHeader}
-                data={getFilteredAndSortedProducts()}
-                renderItem={({ item }) => (
-                    <ProductItem 
-                        product={item} 
-                        togglePurchased={togglePurchased} 
-                        openEditModal={openEditModal} 
-                        deleteProduct={deleteProduct} 
-                        updateQuantity={updateQuantity}
-                    />
-                )}
-                keyExtractor={item => item.id}
-            />
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isModalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Editar Produto</Text>
-                            <TouchableOpacity 
-                                style={styles.closeButton}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <MaterialIcons name="close" size={24} color="#666" />
-                            </TouchableOpacity>
+                </View>
+            ) : (
+                <>
+                    <View style={styles.totalsContainer}>
+                        <View style={styles.totalCard}>
+                            <Text style={styles.totalLabel}>Comprados</Text>
+                            <Text style={[styles.totalValue, styles.purchasedValue]}>
+                                R$ {totalComprados.toFixed(2)}
+                            </Text>
                         </View>
-
-                        <TextInput 
-                            style={styles.modalInput} 
-                            placeholder="Nome do Produto" 
-                            value={productName} 
-                            onChangeText={setProductName}
-                        />
-                        <TextInput 
-                            style={styles.modalInput} 
-                            placeholder="Preço" 
-                            value={productPrice} 
-                            onChangeText={setProductPrice} 
-                            keyboardType="numeric"
-                        />
-                        <TextInput 
-                            style={styles.modalInput} 
-                            placeholder="Quantidade" 
-                            value={productQuantity} 
-                            onChangeText={setProductQuantity} 
-                            keyboardType="numeric"
-                        />
-
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>CANCELAR</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.saveButton]}
-                                onPress={editProduct}
-                            >
-                                <Text style={styles.saveButtonText}>SALVAR</Text>
-                            </TouchableOpacity>
+                        <View style={styles.totalCard}>
+                            <Text style={styles.totalLabel}>Pendentes</Text>
+                            <Text style={[styles.totalValue, styles.pendingValue]}>
+                                R$ {totalPendentes.toFixed(2)}
+                            </Text>
                         </View>
                     </View>
-                </View>
-            </Modal>
 
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isAddModalVisible}
-                onRequestClose={closeAddModal}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Novo Produto</Text>
+                    <View style={styles.searchContainer}>
+                        <MaterialIcons name="search" size={20} color="#666" />
+                        <TextInput 
+                            style={styles.searchInput}
+                            placeholder="Pesquisar produtos..."
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery ? (
                             <TouchableOpacity 
-                                style={styles.closeButton}
-                                onPress={closeAddModal}
+                                onPress={() => setSearchQuery('')}
+                                style={styles.clearSearch}
                             >
-                                <MaterialIcons name="close" size={24} color="#666" />
+                                <MaterialIcons name="close" size={20} color="#666" />
                             </TouchableOpacity>
-                        </View>
-
-                        {errorMessage ? (
-                            <View style={styles.errorContainer}>
-                                <MaterialIcons name="error-outline" size={20} color="#FF5252" />
-                                <Text style={styles.errorText}>{errorMessage}</Text>
-                            </View>
                         ) : null}
-
-                        <TextInput 
-                            style={[
-                                styles.modalInput,
-                                !productName.trim() && errorMessage && styles.inputError
-                            ]} 
-                            placeholder="Nome do Produto" 
-                            value={productName} 
-                            onChangeText={(text) => {
-                                setProductName(text);
-                                setErrorMessage('');
-                            }}
-                        />
-                        <TextInput 
-                            style={[
-                                styles.modalInput,
-                                (!productPrice.trim() || isNaN(parseFloat(productPrice)) || parseFloat(productPrice) <= 0) && errorMessage && styles.inputError
-                            ]} 
-                            placeholder="Preço" 
-                            value={productPrice} 
-                            onChangeText={(text) => {
-                                setProductPrice(text);
-                                setErrorMessage('');
-                            }}
-                            keyboardType="numeric"
-                        />
-                        <TextInput 
-                            style={[
-                                styles.modalInput,
-                                (!productQuantity.trim() || isNaN(parseInt(productQuantity)) || parseInt(productQuantity) <= 0) && errorMessage && styles.inputError
-                            ]} 
-                            placeholder="Quantidade" 
-                            value={productQuantity} 
-                            onChangeText={(text) => {
-                                setProductQuantity(text);
-                                setErrorMessage('');
-                            }}
-                            keyboardType="numeric"
-                        />
-
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={closeAddModal}
-                            >
-                                <Text style={styles.cancelButtonText}>CANCELAR</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.saveButton]}
-                                onPress={addProduct}
-                            >
-                                <Text style={styles.saveButtonText}>ADICIONAR</Text>
-                            </TouchableOpacity>
-                        </View>
                     </View>
-                </View>
-            </Modal>
 
-            {toastVisible && (
-                <Animated.View style={[styles.toast, {opacity: fadeAnim}]}>
-                    <Text style={styles.toastText}>{toastMessage}</Text>
-                </Animated.View>
+                    {products.some(p => p.purchased) && (
+                        <TouchableOpacity 
+                            style={styles.clearButton}
+                            onPress={clearPurchasedProducts}
+                        >
+                            <MaterialIcons name="delete-sweep" size={20} color="white" />
+                            <Text style={styles.clearButtonText}>Limpar Comprados</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity 
+                        style={styles.addButton}
+                        onPress={() => setAddModalVisible(true)}
+                    >
+                        <MaterialIcons name="add" size={20} color="white" />
+                        <Text style={styles.addButtonText}>Adicionar Produto</Text>
+                    </TouchableOpacity>
+
+                    <FlatList
+                        ListHeaderComponent={ListHeader}
+                        data={getFilteredAndSortedProducts()}
+                        renderItem={({ item }) => (
+                            <ProductItem 
+                                product={item} 
+                                togglePurchased={togglePurchased} 
+                                openEditModal={openEditModal} 
+                                deleteProduct={deleteProduct} 
+                                updateQuantity={updateQuantity}
+                            />
+                        )}
+                        keyExtractor={item => item.id}
+                    />
+
+                    <Modal
+                        animationType="slide"
+                        transparent={true}
+                        visible={isModalVisible}
+                        onRequestClose={() => setModalVisible(false)}
+                    >
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>Editar Produto</Text>
+                                    <TouchableOpacity 
+                                        style={styles.closeButton}
+                                        onPress={() => setModalVisible(false)}
+                                    >
+                                        <MaterialIcons name="close" size={24} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <TextInput 
+                                    style={styles.modalInput} 
+                                    placeholder="Nome do Produto" 
+                                    value={productName} 
+                                    onChangeText={setProductName}
+                                />
+                                <TextInput 
+                                    style={styles.modalInput} 
+                                    placeholder="Preço" 
+                                    value={productPrice} 
+                                    onChangeText={setProductPrice} 
+                                    keyboardType="numeric"
+                                />
+                                <TextInput 
+                                    style={styles.modalInput} 
+                                    placeholder="Quantidade" 
+                                    value={productQuantity} 
+                                    onChangeText={setProductQuantity} 
+                                    keyboardType="numeric"
+                                />
+
+                                <View style={styles.modalButtons}>
+                                    <TouchableOpacity 
+                                        style={[styles.modalButton, styles.cancelButton]}
+                                        onPress={() => setModalVisible(false)}
+                                    >
+                                        <Text style={styles.cancelButtonText}>CANCELAR</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={[styles.modalButton, styles.saveButton]}
+                                        onPress={editProduct}
+                                    >
+                                        <Text style={styles.saveButtonText}>SALVAR</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal
+                        animationType="slide"
+                        transparent={true}
+                        visible={isAddModalVisible}
+                        onRequestClose={closeAddModal}
+                    >
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>Novo Produto</Text>
+                                    <TouchableOpacity 
+                                        style={styles.closeButton}
+                                        onPress={closeAddModal}
+                                    >
+                                        <MaterialIcons name="close" size={24} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {errorMessage ? (
+                                    <View style={styles.errorContainer}>
+                                        <MaterialIcons name="error-outline" size={20} color="#FF5252" />
+                                        <Text style={styles.errorText}>{errorMessage}</Text>
+                                    </View>
+                                ) : null}
+
+                                <TextInput 
+                                    style={[
+                                        styles.modalInput,
+                                        !productName.trim() && errorMessage && styles.inputError
+                                    ]} 
+                                    placeholder="Nome do Produto" 
+                                    value={productName} 
+                                    onChangeText={(text) => {
+                                        setProductName(text);
+                                        setErrorMessage('');
+                                    }}
+                                />
+                                <TextInput 
+                                    style={[
+                                        styles.modalInput,
+                                        (!productPrice.trim() || isNaN(parseFloat(productPrice)) || parseFloat(productPrice) <= 0) && errorMessage && styles.inputError
+                                    ]} 
+                                    placeholder="Preço" 
+                                    value={productPrice} 
+                                    onChangeText={(text) => {
+                                        setProductPrice(text);
+                                        setErrorMessage('');
+                                    }}
+                                    keyboardType="numeric"
+                                />
+                                <TextInput 
+                                    style={[
+                                        styles.modalInput,
+                                        (!productQuantity.trim() || isNaN(parseInt(productQuantity)) || parseInt(productQuantity) <= 0) && errorMessage && styles.inputError
+                                    ]} 
+                                    placeholder="Quantidade" 
+                                    value={productQuantity} 
+                                    onChangeText={(text) => {
+                                        setProductQuantity(text);
+                                        setErrorMessage('');
+                                    }}
+                                    keyboardType="numeric"
+                                />
+
+                                <View style={styles.modalButtons}>
+                                    <TouchableOpacity 
+                                        style={[styles.modalButton, styles.cancelButton]}
+                                        onPress={closeAddModal}
+                                    >
+                                        <Text style={styles.cancelButtonText}>CANCELAR</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={[styles.modalButton, styles.saveButton]}
+                                        onPress={addProduct}
+                                    >
+                                        <Text style={styles.saveButtonText}>ADICIONAR</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    {toastVisible && (
+                        <Animated.View style={[styles.toast, {opacity: fadeAnim}]}>
+                            <Text style={styles.toastText}>{toastMessage}</Text>
+                        </Animated.View>
+                    )}
+                </>
             )}
         </View>
     );
@@ -743,6 +789,24 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         flex: 1,
         fontSize: 14,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    retryButton: {
+        backgroundColor: '#4CAF50',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    retryButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });
 
